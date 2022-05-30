@@ -15,9 +15,9 @@ def signal_handler(signal, frame):
     raise ExitCommand()
 
 
-
 FORMAT = 'utf-8'
 SERVER = socket.gethostbyname(socket.gethostname())
+
 
 def send(client, msg):
     # global receive_thread
@@ -37,7 +37,7 @@ def main():
     print("Enter your name: ")
     name = input()
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((SERVER,))
+    client.connect((SERVER, 5000))
     send(client, name)
     # Specifies a second thread.  Loops infinitely inside receive()
     receive_thread = threading.Thread(target=receive, args=(client,))
@@ -45,7 +45,7 @@ def main():
 
     while True:
         msg = input()
-        send(msg)
+        send(client, msg)
 
 
 if __name__ == "__main__":

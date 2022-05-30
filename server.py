@@ -21,15 +21,11 @@ SERVER = socket.gethostbyname(socket.gethostname())
 PORT = 5000
 ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
-ROOMS = []
+rooms = []
+clients = {}
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
-
-
-clients = {}
-# list of connections in the chat room
-rooms = []
 
 
 def print_welcome(room):
@@ -47,6 +43,28 @@ def print_options() -> str:
     return msg
 
 
+def create_room(user):
+    new_room = Room()
+    new_room.users.append(user)
+    rooms.append(new_room)
+    rooms[user.room].users.remove(user)
+    user.room = len(rooms) - 1
+    user.conn.send(("You are now in room " + str(user.room)).encode(FORMAT))
+
+
+def join_room(room_number, user):
+    if rooms[room_number]:
+        # remove user from current room
+        rooms[user.room].users.remove(user)
+        # update room number for user
+        user.room = room_number
+        # add user to the requested room
+        rooms[room_number].users.append(user)
+        return True
+    else:
+        return False
+
+
 def handle_client(conn, addr):
     # Receives the nickname message from client
     name = conn.recv(1024).decode(FORMAT)
@@ -54,7 +72,7 @@ def handle_client(conn, addr):
     # Adds the client to the list of clients
     clients.update({this_user.nick: this_user})
     # Adds the client to the list of users in the lobby
-    ROOMS[0].users.append(this_user)
+    rooms[0].users.append(this_user)
     # Prints to server console
     print(addr, " has joined as ", name)
     
@@ -66,18 +84,29 @@ def handle_client(conn, addr):
     connected = True
     # XXX ADD FUNCTIONALITY TO THIS WHILE LOOP
     while connected:
-        curr_room = ROOMS[this_user.room]
+        curr_room = rooms[this_user.room]
         # attempts to receive message from the client
         msg = conn.recv(1024).decode(FORMAT)
+        args = msg.split(' ')
 
         # Does not enter if statement unless a message has been received
         if not msg == '':
-            # msg_length = int(msg_length)
-            if msg == '!q':
+            if args[0] == '!q':
                 connected = False
                 disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
                 print(disc_str)
                 curr_room.buffer.append(disc_str)
+            elif args[0] == '!h':
+                conn.send(print_options().encode(FORMAT))
+            elif args[0] == '!c':
+                create_room(this_user)
+            elif args[0] == '!j':
+                conn.send("Enter a room number".encode(FORMAT))
+                room_number = int(conn.recv(1024).decode(FORMAT))
+                if not join_room(room_number, this_user):
+                    conn.send("Invalid room number".encode(FORMAT))
+                else:
+                    conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
             else:
                 print(addr, ":", msg)
                 new_msg = this_user.nick + ": " + msg
@@ -95,7 +124,7 @@ def handle_client(conn, addr):
 def start():
     # Initializing lobby room
     lobby = Room()
-    ROOMS.append(lobby)
+    rooms.append(lobby)
     server.listen()
     print("Server address: ", SERVER)
     while True:
