@@ -24,10 +24,11 @@ ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
 rooms = []
 clients = {}
+names = []
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
-serveron = True
+server_on = True
 
 
 def print_welcome(room):
@@ -82,28 +83,24 @@ def view(conn,addr):
             conn.send(' '.encode(FORMAT))   
         
                 
-def leave(conn,addr,user):
+def leave(user):
     room_number = user.room
     this_room = rooms[room_number]
     user_list = this_room.users
     if user_list:
         if user in user_list:
-            user_list.remove(user) 
+            user_list.remove(user)
+    user.room = 0
 
-        
-    
-    
-            
-        
-    
-                 
+
 def handle_client(conn, addr):
     # Receives the nickname message from client
-    while (serveron):
+    while server_on:
         name = conn.recv(1024).decode(FORMAT)
-        if name in names:
+        while name in names:
             conn.send('Please use another username'.encode(FORMAT))
-        name = conn.recv(1024).decode(FORMAT)
+            name = conn.recv(1024).decode(FORMAT)
+        names.append(name)
         this_user = User(conn, addr, name)
         # Adds the client to the list of clients
         clients.update({this_user.nick: this_user})
@@ -118,7 +115,6 @@ def handle_client(conn, addr):
         
         # Loops until connected is False (client sends '!q')
         connected = True
-        # XXX ADD FUNCTIONALITY TO THIS WHILE LOOP
         while connected:
             curr_room = rooms[this_user.room]
             # attempts to receive message from the client
@@ -146,7 +142,7 @@ def handle_client(conn, addr):
                     else:
                         conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
                 elif args[0] == '!l':
-                    leave(conn,addr,this_user)
+                    leave(conn)
                     view(conn,addr)
                 else:
                     print(addr, ":", msg)
