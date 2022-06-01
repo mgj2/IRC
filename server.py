@@ -140,7 +140,7 @@ def handle_client(conn, addr):
                     conn.send("Enter a room number".encode(FORMAT))
                     room_number = int(conn.recv(1024).decode(FORMAT))
                     if not join_room(room_number, this_user):
-                        conn.send(Try again with proper room number".encode(FORMAT))
+                        conn.send("Try again with proper room number".encode(FORMAT))
                     else:
                         conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
                 elif args[0] == '!l':
