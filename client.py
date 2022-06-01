@@ -34,16 +34,30 @@ def receive(client):
     while True:
         print(client.recv(2048).decode(FORMAT))
         
-
-def main():
+def usernaming(client):
     print("Enter your name: ")
     name = input()
+    send(client, name)
+    flag = client.recv(2048).decode(FORMAT)
+    
+    return(flag)
+
+def main():
+    #print("Enter your name: ")
+    #name = input()
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((SERVER, PORT))
-    send(client, name)
-    # Specifies a second thread.  Loops infinitely inside receive()
-    receive_thread = threading.Thread(target=receive, args=(client,))
-    receive_thread.start()
+    while (True):
+        #calling the usernaming function to take username from user and perform naming conventions
+        flag = usernaming(client)
+        if(flag != 'You are in the lobby.'):
+            print(flag)
+            
+        else:   
+            # Specifies a second thread.  Loops infinitely inside receive()
+            receive_thread = threading.Thread(target=receive, args=(client,))
+            receive_thread.start()
+            break
 
     while True:
         msg = input()
