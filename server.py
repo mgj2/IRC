@@ -16,9 +16,10 @@ class Room:
         self.buffer = []
         self.users = []
         
-
-SERVER = socket.gethostbyname(socket.gethostname())
-PORT = 5000
+SERVER= '127.0.0.1'
+PORT= 64444
+#SERVER = socket.gethostbyname(socket.gethostname())
+#PORT = 5000
 ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
 rooms = []
@@ -55,7 +56,9 @@ def create_room(user):
 def join_room(room_number, user):
     if rooms[room_number]:
         # remove user from current room
-        rooms[user.room].users.remove(user)
+        #check if user is in current room because we can leave a room before joining another room (!l)
+        if user in rooms[user.room].users:
+            rooms[user.room].users.remove(user)
         # update room number for user
         user.room = room_number
         # add user to the requested room
@@ -64,7 +67,35 @@ def join_room(room_number, user):
     else:
         return False
 
+def view(conn,addr):
+    conn.send("Rooms available:   \n".encode(FORMAT))
+    #userList = []
+  
+    for i in rooms:
+        index=str(rooms.index(i))
+        conn.send(index.encode(FORMAT))
+        conn.send('\n'.encode(FORMAT))
+        for j in i.users:
+            name=j.nick 
+            conn.send(name.encode(FORMAT))
+            conn.send(' '.encode(FORMAT))   
+        
+                
+def leave(conn,addr,user):
+    room_number = user.room
+    this_room = rooms[room_number]
+    user_list = this_room.users
+    if user_list:
+        if user in user_list:
+            user_list.remove(user) 
 
+        
+    
+    
+            
+        
+    
+                 
 def handle_client(conn, addr):
     # Receives the nickname message from client
     name = conn.recv(1024).decode(FORMAT)
@@ -98,6 +129,8 @@ def handle_client(conn, addr):
                 curr_room.buffer.append(disc_str)
             elif args[0] == '!h':
                 conn.send(print_options().encode(FORMAT))
+            elif args[0] == '!v':
+                view(conn,addr)
             elif args[0] == '!c':
                 create_room(this_user)
             elif args[0] == '!j':
@@ -107,6 +140,9 @@ def handle_client(conn, addr):
                     conn.send("Invalid room number".encode(FORMAT))
                 else:
                     conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
+            elif args[0] == '!l':
+                leave(conn,addr,this_user)
+                view(conn,addr)
             else:
                 print(addr, ":", msg)
                 new_msg = this_user.nick + ": " + msg

@@ -16,7 +16,9 @@ def signal_handler(signal, frame):
 
 
 FORMAT = 'utf-8'
-SERVER = socket.gethostbyname(socket.gethostname())
+#SERVER = socket.gethostbyname(socket.gethostname())
+SERVER= '127.0.0.1'
+PORT= 64444
 
 
 def send(client, msg):
@@ -37,7 +39,7 @@ def main():
     print("Enter your name: ")
     name = input()
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((SERVER, 5000))
+    client.connect((SERVER, PORT))
     send(client, name)
     # Specifies a second thread.  Loops infinitely inside receive()
     receive_thread = threading.Thread(target=receive, args=(client,))
