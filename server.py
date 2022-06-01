@@ -160,8 +160,9 @@ def handle_client(conn, addr):
             for i in this_user.rooms:
                 while rooms[i].buffer:
                     new_msg = rooms[i].buffer.pop()
-                    for j in rooms[i].users:
-                        j.conn.send(new_msg.encode(FORMAT))
+                    user_list = rooms[i].users
+                    for j in rooms[i].users.keys():
+                        user_list.get(j).conn.send(new_msg.encode(FORMAT))
             time.sleep(1)
         conn.close()
 
