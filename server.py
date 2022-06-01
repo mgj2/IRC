@@ -8,18 +8,18 @@ class User:
         self.conn = new_conn
         self.addr = new_addr
         self.nick = new_nick
-        self.room = 0
+        self.rooms = [0]
         
         
 class Room:
     def __init__(self):
         self.buffer = []
-        self.users = []
-        
-SERVER= '127.0.0.1'
-PORT= 64444
-#SERVER = socket.gethostbyname(socket.gethostname())
-#PORT = 5000
+        self.users = {}
+
+
+# SERVER = '127.0.0.1'
+SERVER = socket.gethostbyname(socket.gethostname())
+PORT = 64444
 ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
 rooms = []
@@ -31,66 +31,67 @@ server.bind(ADDR)
 server_on = True
 
 
-def print_welcome(room):
-    print("Welcome to room", room)
-    print_options()
-
-
 def print_options() -> str:
-    msg = "!h for help \n" + \
-          "!v to view the list of rooms \n" + \
+    msg = "\n===================\n" + \
+          "!h for help \n" + \
+          "!v to view_rooms the list of rooms \n" + \
           "!c to create a room \n" + \
           "!j to join a room \n" + \
-          "!l to leave the room \n" + \
+          "!l to leave_room the room \n" + \
           "!q to quit \n"
     return msg
 
 
 def create_room(user):
+    global rooms
     new_room = Room()
-    new_room.users.append(user)
+    new_room.users.update({user.nick: user})
     rooms.append(new_room)
-    rooms[user.room].users.remove(user)
-    user.room = len(rooms) - 1
-    user.conn.send(("You are now in room " + str(user.room)).encode(FORMAT))
+    user.rooms.append(len(rooms) - 1)
+    user.conn.send(("You have joined room " + str(len(rooms) - 1) + '\n').encode(FORMAT))
 
 
-def join_room(room_number, user):
-    if rooms[room_number]:
-        # remove user from current room
-        #check if user is in current room because we can leave a room before joining another room (!l)
-        if user in rooms[user.room].users:
-            rooms[user.room].users.remove(user)
-        # update room number for user
-        user.room = room_number
-        # add user to the requested room
-        rooms[room_number].users.append(user)
-        return True
+def join_room(room_number, user) -> bool:
+    global rooms
+    room_number = int(room_number)
+    if room_number < len(rooms):
+        if room_number not in user.rooms:
+            # update room number for user
+            user.rooms.append(room_number)
+            # add user to the requested room
+            rooms[room_number].users.update({user.nick: user})
+            return True
+        else:
+            user.conn.send(("Already in room " + str(room_number) + "\n").encode(FORMAT))
+            return False
     else:
         return False
 
-def view(conn,addr):
-    conn.send("Rooms available:   \n".encode(FORMAT))
-    #userList = []
-  
+
+def leave_room(user, room_number) -> bool:
+    global rooms
+    room_number = int(room_number)
+    if room_number < len(rooms):
+        user_list = rooms[room_number].users
+        if user.nick in user_list.keys():
+            user_list.pop(user.nick)
+            user.rooms.remove(room_number)
+            return True
+        else:
+            return False
+    return False
+
+
+def view_rooms(conn):
+    conn.send("===================\nRooms available:\n".encode(FORMAT))
+
     for i in rooms:
-        index=str(rooms.index(i))
-        conn.send(index.encode(FORMAT))
-        conn.send('\n'.encode(FORMAT))
-        for j in i.users:
-            name=j.nick 
-            conn.send(name.encode(FORMAT))
-            conn.send(' '.encode(FORMAT))   
-        
-                
-def leave(user):
-    room_number = user.room
-    this_room = rooms[room_number]
-    user_list = this_room.users
-    if user_list:
-        if user in user_list:
-            user_list.remove(user)
-    user.room = 0
+        index = str(rooms.index(i))
+        conn.send(("  +  " + index + "\n").encode(FORMAT))
+        for j in i.users.keys():
+            conn.send(("    -" + j).encode(FORMAT))
+            conn.send(' '.encode(FORMAT))
+        conn.send('\n\n'.encode(FORMAT))
 
 
 def handle_client(conn, addr):
@@ -105,7 +106,7 @@ def handle_client(conn, addr):
         # Adds the client to the list of clients
         clients.update({this_user.nick: this_user})
         # Adds the client to the list of users in the lobby
-        rooms[0].users.append(this_user)
+        rooms[0].users.update({this_user.nick: this_user})
         # Prints to server console
         print(addr, " has joined as ", name)
         
@@ -116,7 +117,6 @@ def handle_client(conn, addr):
         # Loops until connected is False (client sends '!q')
         connected = True
         while connected:
-            curr_room = rooms[this_user.room]
             # attempts to receive message from the client
             msg = conn.recv(1024).decode(FORMAT)
             args = msg.split(' ')
@@ -127,11 +127,12 @@ def handle_client(conn, addr):
                     connected = False
                     disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
                     print(disc_str)
-                    curr_room.buffer.append(disc_str)
+                    for i in this_user.rooms:
+                        rooms[i].buffer.append(disc_str)
                 elif args[0] == '!h':
                     conn.send(print_options().encode(FORMAT))
                 elif args[0] == '!v':
-                    view(conn,addr)
+                    view_rooms(conn)
                 elif args[0] == '!c':
                     create_room(this_user)
                 elif args[0] == '!j':
@@ -142,18 +143,25 @@ def handle_client(conn, addr):
                     else:
                         conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
                 elif args[0] == '!l':
-                    leave(conn)
-                    view(conn,addr)
+                    conn.send("Enter a room number: ".encode(FORMAT))
+                    room_number = conn.recv(1024).decode(FORMAT)
+                    if leave_room(this_user, room_number):
+                        conn.send(("you have left room " + str(room_number)).encode(FORMAT))
+                    else:
+                        conn.send("Can't leave room".encode(FORMAT))
+                    view_rooms(conn)
                 else:
                     print(addr, ":", msg)
                     new_msg = this_user.nick + ": " + msg
-                    curr_room.buffer.append(new_msg)
+                    for i in this_user.rooms:
+                        rooms[i].buffer.append(new_msg)
 
             # Pops the buffer and sends the messages to all clients
-            while curr_room.buffer:
-                new_msg = curr_room.buffer.pop()
-                for i in curr_room.users:
-                    i.conn.send(new_msg.encode(FORMAT))
+            for i in this_user.rooms:
+                while rooms[i].buffer:
+                    new_msg = rooms[i].buffer.pop()
+                    for j in rooms[i].users:
+                        j.conn.send(new_msg.encode(FORMAT))
             time.sleep(1)
         conn.close()
 
