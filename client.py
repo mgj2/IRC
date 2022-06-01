@@ -36,14 +36,17 @@ def main():
     # name = input()
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((SERVER, PORT))
-    # calling the user_naming function to take username from user and perform naming conventions
-    flag = user_naming(client)
-    if flag != 'You are in the lobby.':
-        print(flag)
-    else:
-        # Specifies a second thread.  Loops infinitely inside receive()
-        send_thread = threading.Thread(target=send, args=(client,))
-        send_thread.start()
+    while True:
+        # calling the user_naming function to take username from user and perform naming conventions
+        flag = user_naming(client)
+        if flag != 'You are in the lobby.':
+            print(flag)
+
+        else:
+            # Specifies a second thread.  Loops infinitely inside receive()
+            receive_thread = threading.Thread(target=send, args=(client,))
+            receive_thread.start()
+            break
 
     while True:
         receive(client)
