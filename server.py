@@ -27,6 +27,7 @@ clients = {}
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
+serveron = True
 
 
 def print_welcome(room):
@@ -98,63 +99,67 @@ def leave(conn,addr,user):
                  
 def handle_client(conn, addr):
     # Receives the nickname message from client
-    name = conn.recv(1024).decode(FORMAT)
-    this_user = User(conn, addr, name)
-    # Adds the client to the list of clients
-    clients.update({this_user.nick: this_user})
-    # Adds the client to the list of users in the lobby
-    rooms[0].users.append(this_user)
-    # Prints to server console
-    print(addr, " has joined as ", name)
-    
-    # Send options to client
-    conn.send("You are in the lobby.".encode(FORMAT))
-    conn.send(print_options().encode(FORMAT))
-    
-    # Loops until connected is False (client sends '!q')
-    connected = True
-    # XXX ADD FUNCTIONALITY TO THIS WHILE LOOP
-    while connected:
-        curr_room = rooms[this_user.room]
-        # attempts to receive message from the client
-        msg = conn.recv(1024).decode(FORMAT)
-        args = msg.split(' ')
+    while (serveron):
+        name = conn.recv(1024).decode(FORMAT)
+        if name in names:
+            conn.send('Please use another username'.encode(FORMAT))
+        name = conn.recv(1024).decode(FORMAT)
+        this_user = User(conn, addr, name)
+        # Adds the client to the list of clients
+        clients.update({this_user.nick: this_user})
+        # Adds the client to the list of users in the lobby
+        rooms[0].users.append(this_user)
+        # Prints to server console
+        print(addr, " has joined as ", name)
+        
+        # Send options to client
+        conn.send("You are in the lobby.".encode(FORMAT))
+        conn.send(print_options().encode(FORMAT))
+        
+        # Loops until connected is False (client sends '!q')
+        connected = True
+        # XXX ADD FUNCTIONALITY TO THIS WHILE LOOP
+        while connected:
+            curr_room = rooms[this_user.room]
+            # attempts to receive message from the client
+            msg = conn.recv(1024).decode(FORMAT)
+            args = msg.split(' ')
 
-        # Does not enter if statement unless a message has been received
-        if not msg == '':
-            if args[0] == '!q':
-                connected = False
-                disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
-                print(disc_str)
-                curr_room.buffer.append(disc_str)
-            elif args[0] == '!h':
-                conn.send(print_options().encode(FORMAT))
-            elif args[0] == '!v':
-                view(conn,addr)
-            elif args[0] == '!c':
-                create_room(this_user)
-            elif args[0] == '!j':
-                conn.send("Enter a room number".encode(FORMAT))
-                room_number = int(conn.recv(1024).decode(FORMAT))
-                if not join_room(room_number, this_user):
-                    conn.send("Invalid room number".encode(FORMAT))
+            # Does not enter if statement unless a message has been received
+            if not msg == '':
+                if args[0] == '!q':
+                    connected = False
+                    disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
+                    print(disc_str)
+                    curr_room.buffer.append(disc_str)
+                elif args[0] == '!h':
+                    conn.send(print_options().encode(FORMAT))
+                elif args[0] == '!v':
+                    view(conn,addr)
+                elif args[0] == '!c':
+                    create_room(this_user)
+                elif args[0] == '!j':
+                    conn.send("Enter a room number".encode(FORMAT))
+                    room_number = int(conn.recv(1024).decode(FORMAT))
+                    if not join_room(room_number, this_user):
+                        conn.send("Invalid room number".encode(FORMAT))
+                    else:
+                        conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
+                elif args[0] == '!l':
+                    leave(conn,addr,this_user)
+                    view(conn,addr)
                 else:
-                    conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
-            elif args[0] == '!l':
-                leave(conn,addr,this_user)
-                view(conn,addr)
-            else:
-                print(addr, ":", msg)
-                new_msg = this_user.nick + ": " + msg
-                curr_room.buffer.append(new_msg)
+                    print(addr, ":", msg)
+                    new_msg = this_user.nick + ": " + msg
+                    curr_room.buffer.append(new_msg)
 
-        # Pops the buffer and sends the messages to all clients
-        while curr_room.buffer:
-            new_msg = curr_room.buffer.pop()
-            for i in curr_room.users:
-                i.conn.send(new_msg.encode(FORMAT))
-        time.sleep(1)
-    conn.close()
+            # Pops the buffer and sends the messages to all clients
+            while curr_room.buffer:
+                new_msg = curr_room.buffer.pop()
+                for i in curr_room.users:
+                    i.conn.send(new_msg.encode(FORMAT))
+            time.sleep(1)
+        conn.close()
 
 
 def start():
