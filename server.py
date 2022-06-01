@@ -90,7 +90,7 @@ def view_rooms(conn):
         conn.send(("  +  " + index + "\n").encode(FORMAT))
         for j in i.users.keys():
             conn.send(("    -" + j).encode(FORMAT))
-            conn.send(' '.encode(FORMAT))
+            conn.send('\n'.encode(FORMAT))
         conn.send('\n\n'.encode(FORMAT))
 
 
