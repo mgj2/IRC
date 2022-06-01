@@ -23,7 +23,6 @@ PORT = 64444
 ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
 rooms = []
-clients = {}
 names = []
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -96,15 +95,14 @@ def view_rooms(conn):
 
 def handle_client(conn, addr):
     # Receives the nickname message from client
-    while server_on:
+    connected = True
+    while server_on and connected:
         name = conn.recv(1024).decode(FORMAT)
         while name in names:
             conn.send('Please use another username'.encode(FORMAT))
             name = conn.recv(1024).decode(FORMAT)
         names.append(name)
         this_user = User(conn, addr, name)
-        # Adds the client to the list of clients
-        clients.update({this_user.nick: this_user})
         # Adds the client to the list of users in the lobby
         rooms[0].users.update({this_user.nick: this_user})
         # Prints to server console
@@ -115,7 +113,6 @@ def handle_client(conn, addr):
         conn.send(print_options().encode(FORMAT))
         
         # Loops until connected is False (client sends '!q')
-        connected = True
         while connected:
             # attempts to receive message from the client
             msg = conn.recv(1024).decode(FORMAT)
@@ -124,11 +121,14 @@ def handle_client(conn, addr):
             # Does not enter if statement unless a message has been received
             if not msg == '':
                 if args[0] == '!q':
+                    conn.close()
                     connected = False
                     disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
                     print(disc_str)
                     for i in this_user.rooms:
                         rooms[i].buffer.append(disc_str)
+                        rooms[i].users.pop(this_user.nick)
+                    names.remove(this_user.nick)
                 elif args[0] == '!h':
                     conn.send(print_options().encode(FORMAT))
                 elif args[0] == '!v':
@@ -167,7 +167,6 @@ def handle_client(conn, addr):
                             sent_list.append(j)
                             user_list.get(j).conn.send(new_msg.encode(FORMAT))
             time.sleep(1)
-        conn.close()
 
 
 def start():

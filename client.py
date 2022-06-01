@@ -1,16 +1,6 @@
 import socket
 import threading
-
-
-# ExitCommand class, signal_handler() adapted from
-
-
-# class ExitCommand(Exception):
-#     pass
-
-
-# def signal_handler(signal, frame):
-#     raise ExitCommand()
+import os
 
 
 FORMAT = 'utf-8'
@@ -19,13 +9,13 @@ SERVER = socket.gethostbyname(socket.gethostname())
 PORT = 64444
 
 
-def send(client, msg):
-    # global receive_thread
-    message = msg.encode(FORMAT)
-    client.send(message)
-    # if message == '!q':
-    #     os.kill(receive_thread.native_id, signal.SIGTERM)
-    #     exit(0)
+def send(client):
+    while True:
+        msg = input()
+        message = msg.encode(FORMAT)
+        client.send(message)
+        if msg == '!q':
+            os._exit(0)
 
     
 def receive(client):
@@ -36,7 +26,7 @@ def receive(client):
 def user_naming(client):
     print("Enter your name: ")
     name = input()
-    send(client, name)
+    client.send(name.encode(FORMAT))
     flag = client.recv(2048).decode(FORMAT)
     return flag
 
@@ -46,21 +36,17 @@ def main():
     # name = input()
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((SERVER, PORT))
-    while True:
-        # calling the user_naming function to take username from user and perform naming conventions
-        flag = user_naming(client)
-        if flag != 'You are in the lobby.':
-            print(flag)
-            
-        else:   
-            # Specifies a second thread.  Loops infinitely inside receive()
-            receive_thread = threading.Thread(target=receive, args=(client,))
-            receive_thread.start()
-            break
+    # calling the user_naming function to take username from user and perform naming conventions
+    flag = user_naming(client)
+    if flag != 'You are in the lobby.':
+        print(flag)
+    else:
+        # Specifies a second thread.  Loops infinitely inside receive()
+        send_thread = threading.Thread(target=send, args=(client,))
+        send_thread.start()
 
     while True:
-        msg = input()
-        send(client, msg)
+        receive(client)
 
 
 if __name__ == "__main__":
