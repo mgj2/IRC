@@ -157,12 +157,15 @@ def handle_client(conn, addr):
                         rooms[i].buffer.append(new_msg)
 
             # Pops the buffer and sends the messages to all clients
+            sent_list = []
             for i in this_user.rooms:
                 while rooms[i].buffer:
                     new_msg = rooms[i].buffer.pop()
                     user_list = rooms[i].users
                     for j in rooms[i].users.keys():
-                        user_list.get(j).conn.send(new_msg.encode(FORMAT))
+                        if j not in sent_list:
+                            sent_list.append(j)
+                            user_list.get(j).conn.send(new_msg.encode(FORMAT))
             time.sleep(1)
         conn.close()
 
