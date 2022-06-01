@@ -64,7 +64,7 @@ def join_room(room_number, user) -> bool:
             user.conn.send(("Already in room " + str(room_number) + "\n").encode(FORMAT))
             return False
     else:
-        user.conn.send("Invalid room number".encode(FORMAT))
+        user.conn.send(("Invalid room number " + str(room_number) + "\n").encode(FORMAT))
         return False
 
 
@@ -83,7 +83,7 @@ def leave_room(user, room_number) -> bool:
 
 
 def view_rooms(conn):
-    conn.send("===================\nRooms available:\n".encode(FORMAT))
+    conn.send("\n===================\nRooms available:\n".encode(FORMAT))
 
     for i in rooms:
         index = str(rooms.index(i))
@@ -140,7 +140,8 @@ def handle_client(conn, addr):
                     conn.send("Enter a room number".encode(FORMAT))
                     room_number = int(conn.recv(1024).decode(FORMAT))
                     if not join_room(room_number, this_user):
-                        conn.send("Try again with proper room number".encode(FORMAT))
+                        conn.send("Try again with proper room number \n".encode(FORMAT))
+                        view_rooms(conn)
                     else:
                         conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
                 elif args[0] == '!l':
