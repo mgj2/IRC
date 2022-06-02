@@ -34,6 +34,9 @@ except ConnectionResetError:
 except ConnectionRefusedError:
     print('The server bind request is refused,  please try after sometime, closing now')
     exit() 
+except OSError:
+    print('The server is already running, closing now')
+    exit()
 
 server_on = True
 
