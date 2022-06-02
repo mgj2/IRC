@@ -123,7 +123,7 @@ def view_rooms(conn):
     for i in rooms:
         index = str(rooms.index(i))
         try:
-            conn.send(("  +  " + index).encode(FORMAT))
+            conn.send(("  + Room " + index).encode(FORMAT))
         except ConnectionResetError:
             print('The client is not responding and crashed, please try after sometime. \
             Closing the session now gracefully')
@@ -214,6 +214,7 @@ def handle_client(conn, addr):
                             room_selection = temp.split(' ')
                             conn.send("Enter your message: ".encode(FORMAT))
                             s_message = conn.recv(1024).decode(FORMAT)
+                            print(this_user.addr, ":", s_message)
                             new_msg = this_user.nick + ": " + s_message
                             for i in room_selection:
                                 if int(i) in this_user.rooms:
