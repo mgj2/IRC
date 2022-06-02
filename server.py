@@ -1,6 +1,8 @@
 import socket
 import threading
 import time
+import sys
+import os
 
 
 class User:
@@ -259,4 +261,11 @@ def start():
 
 
 print("Starting server...")
-start()
+try:
+    start()
+except KeyboardInterrupt:
+    print("Interrupted")
+    try:
+        sys.exit(1)
+    except SystemExit:
+        os._exit(1)
