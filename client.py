@@ -20,28 +20,22 @@ def send(client, msg):
     
 def receive(client):
     while True:
-        try:
-            print(client.recv(2048).decode(FORMAT))
-        except ConnectionResetError:
-            print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
-            exit()
-        except ConnectionRefusedError:
-            print('The chat server is not available, disconnecting the session now')
-            exit()
+        print(client.recv(2048).decode(FORMAT))
 
 
 def user_naming(client):
     print("Enter your name: ")
     name = input()
+    send(client, name)
     try:
-        send(client, name)
+        flag = client.recv(2048).decode(FORMAT)
     except ConnectionResetError:
         print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
         exit()
     except ConnectionRefusedError:
         print('The chat server is not available, disconnecting the session now')
         exit()
-    flag = client.recv(2048).decode(FORMAT)
+    
     return flag
 
 
@@ -71,9 +65,9 @@ def main():
             receive_thread.start()
             break
 
-        while True:
-            msg = input()
-            send(client, msg)
+    while True:
+        msg = input()
+        send(client, msg)
 
 
 if __name__ == "__main__":
