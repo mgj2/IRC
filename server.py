@@ -45,6 +45,7 @@ def print_options() -> str:
           "!c to create a room \n" + \
           "!j to join a room \n" + \
           "!l to leave_room the room \n" + \
+          "!s to send messages to specific room/s \n" + \
           "!q to quit \n"
     return msg
 
@@ -79,7 +80,8 @@ def join_room(room_number, user) -> bool:
             try:
                 user.conn.send(("Already in room " + str(room_number) + "\n").encode(FORMAT))
             except ConnectionResetError:
-                print('The client is not responding and crashed, please try after sometime, closing the session now gracefully')
+                print('The client is not responding and crashed, please try after sometime.  \
+                Closing the session now gracefully')
                 exit()
             except ConnectionRefusedError:
                 print('The client connection is refused, closing the session now gracefully')
@@ -89,7 +91,8 @@ def join_room(room_number, user) -> bool:
         try:
             user.conn.send(("Invalid room number " + str(room_number) + "\n").encode(FORMAT))
         except ConnectionResetError:
-            print('The client is not responding and crashed, please try after sometime, closing the session now gracefully')
+            print('The client is not responding and crashed, please try after sometime.  \
+            Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
             print('The client connection is refused, closing the session now gracefully')
@@ -117,9 +120,10 @@ def view_rooms(conn):
     for i in rooms:
         index = str(rooms.index(i))
         try:
-            conn.send(("  +  " + index + "\n").encode(FORMAT))
+            conn.send(("  +  " + index).encode(FORMAT))
         except ConnectionResetError:
-            print('The client is not responding and crashed, please try after sometime, closing the session now gracefully')
+            print('The client is not responding and crashed, please try after sometime. \
+            Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
             print('The client connection is refused, closing the session now gracefully')
@@ -128,9 +132,9 @@ def view_rooms(conn):
             try:
                 conn.send(("    -" + j).encode(FORMAT))
                 conn.send('\n'.encode(FORMAT))
-                conn.send('\n\n'.encode(FORMAT))
             except ConnectionResetError:
-                print('The client is not responding and crashed, please try after sometime, closing the session now gracefully')
+                print('The client is not responding and crashed, please try after sometime. \
+                Closing the session now gracefully')
                 exit()
             except ConnectionRefusedError:
                 print('The client connection is refused, closing the session now gracefully')
@@ -196,6 +200,21 @@ def handle_client(conn, addr):
                         else:
                             conn.send("Can't leave room".encode(FORMAT))
                         view_rooms(conn)
+                    elif args[0] == '!s':
+                        if len(rooms) < 1:
+                            conn.send("Create a room first".encode(FORMAT))
+                        elif len(this_user.rooms) < 1:
+                            conn.send("Join a room first".encode(FORMAT))
+                        else:
+                            conn.send("Which rooms?".encode(FORMAT))
+                            temp = conn.recv(1024).decode(FORMAT)
+                            room_selection = temp.split(' ')
+                            conn.send("Enter your message: ".encode(FORMAT))
+                            s_message = conn.recv(1024).decode(FORMAT)
+                            new_msg = this_user.nick + ": " + s_message
+                            for i in room_selection:
+                                if int(i) in this_user.rooms:
+                                    rooms[int(i)].buffer.append(new_msg)
                     else:
                         print(addr, ":", msg)
                         new_msg = this_user.nick + ": " + msg
@@ -214,7 +233,8 @@ def handle_client(conn, addr):
                                 user_list.get(j).conn.send(new_msg.encode(FORMAT))
                 time.sleep(1)
         except ConnectionResetError:
-            print('The client is not responding and crashed, please try after sometime, closing the session now gracefully')
+            print('The client is not responding and crashed, please try after sometime. \
+              Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
             print('The client connection is refused, closing the session now gracefully')
