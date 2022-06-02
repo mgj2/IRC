@@ -175,6 +175,7 @@ def handle_client(conn, addr):
                 # Does not enter if statement unless a message has been received
                 if not msg == '':
                     if args[0] == '!q':
+                        conn.send(('quit').encode(FORMAT))
                         conn.close()
                         connected = False
                         disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
@@ -182,7 +183,8 @@ def handle_client(conn, addr):
                         for i in this_user.rooms:
                             rooms[i].buffer.append(disc_str)
                             rooms[i].users.pop(this_user.nick)
-                        names.remove(this_user.nick)
+                            names.remove(this_user.nick)
+                        
                     elif args[0] == '!h':
                         conn.send(print_options().encode(FORMAT))
                     elif args[0] == '!v':

@@ -19,8 +19,15 @@ def send(client, msg):
 
     
 def receive(client):
+    resp = ''
     while True:
-        print(client.recv(2048).decode(FORMAT))
+            resp = client.recv(2048).decode(FORMAT)
+            if resp != 'quit':
+                print(resp)
+            elif resp=='quit':
+                os._exit(1) 
+            break          
+        
 
 
 def user_naming(client):
@@ -29,14 +36,14 @@ def user_naming(client):
     send(client, name)
     try:
         flag = client.recv(2048).decode(FORMAT)
-        return flag
+       
     except ConnectionResetError:
         print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
         exit(1)
     except ConnectionRefusedError:
         print('The chat server is not available, disconnecting the session now')
         exit(1)
-    
+    return flag
 
 def main():
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -58,12 +65,13 @@ def main():
                 
         else:   
             # Specifies a second thread.  Loops infinitely inside receive()
-            send_thread = threading.Thread(target=send, args=(client,))
-            send_thread.start()
+            receive_thread = threading.Thread(target=receive, args=(client,))
+            receive_thread.start()
             break
 
     while True:
-        receive(client)
+        msg = input()
+        send(client, msg)
 
 
 if __name__ == "__main__":
