@@ -1,8 +1,7 @@
 import socket
 import threading
 import time
-import sys
-import os
+import signal
 
 
 class User:
@@ -28,6 +27,8 @@ rooms = []
 names = []
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.settimeout(0.2)
 try:
     server.bind(ADDR)
 except ConnectionResetError:
@@ -41,6 +42,16 @@ except OSError:
     exit()
 
 server_on = True
+
+
+def graceful_exit(signal_received, frame):
+    global server_on
+    print("Shut down the server? (y/n)")
+    if input() == 'y':
+        server_on = False
+
+
+signal.signal(signal.SIGINT, graceful_exit)
 
 
 def print_options() -> str:
@@ -147,6 +158,9 @@ def view_rooms(conn):
 
 
 def handle_client(conn, addr):
+    global server_on
+    global rooms
+    this_user = None
     # Receives the nickname message from client
     connected = True
     while server_on and connected:
@@ -167,107 +181,125 @@ def handle_client(conn, addr):
             conn.send(print_options().encode(FORMAT))
             
             # Loops until connected is False (client sends '!q')
-            while connected:
+            while connected and server_on:
                 # attempts to receive message from the client
-                msg = conn.recv(1024).decode(FORMAT)
-                args = msg.split(' ')
+                try:
+                    msg = conn.recv(1024).decode(FORMAT)
+                    args = msg.split(' ')
 
-                # Does not enter if statement unless a message has been received
-                if not msg == '':
-                    if args[0] == '!q':
-                        conn.send(('quit').encode(FORMAT))
-                        conn.close()
-                        connected = False
-                        disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
-                        print(disc_str)
-                        for i in this_user.rooms:
-                            rooms[i].buffer.append(disc_str)
-                            rooms[i].users.pop(this_user.nick)
-                            names.remove(this_user.nick)
-                        
-                    elif args[0] == '!h':
-                        conn.send(print_options().encode(FORMAT))
-                    elif args[0] == '!v':
-                        view_rooms(conn)
-                    elif args[0] == '!c':
-                        create_room(this_user)
-                    elif args[0] == '!j':
-                        conn.send("Enter a room number".encode(FORMAT))
-                        room_number = int(conn.recv(1024).decode(FORMAT))
-                        if not join_room(room_number, this_user):
-                            conn.send("Try again with proper room number \n".encode(FORMAT))
+                    # Does not enter if statement unless a message has been received
+                    if not msg == '':
+                        if args[0] == '!q':
+                            conn.send(('quit').encode(FORMAT))
+                            conn.close()
+                            connected = False
+                            disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
+                            print(disc_str)
+                            for i in this_user.rooms:
+                                rooms[i].buffer.append(disc_str)
+                                rooms[i].users.pop(this_user.nick)
+                                names.remove(this_user.nick)
+
+                        elif args[0] == '!h':
+                            conn.send(print_options().encode(FORMAT))
+                        elif args[0] == '!v':
                             view_rooms(conn)
+                        elif args[0] == '!c':
+                            create_room(this_user)
+                        elif args[0] == '!j':
+                            conn.send("Enter a room number".encode(FORMAT))
+                            room_number = int(conn.recv(1024).decode(FORMAT))
+                            if not join_room(room_number, this_user):
+                                conn.send("Try again with proper room number \n".encode(FORMAT))
+                                view_rooms(conn)
+                            else:
+                                conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
+                        elif args[0] == '!l':
+                            conn.send("Enter a room number: ".encode(FORMAT))
+                            room_number = conn.recv(1024).decode(FORMAT)
+                            if leave_room(this_user, room_number):
+                                conn.send(("you have left room " + str(room_number)).encode(FORMAT))
+                            else:
+                                conn.send("Can't leave room".encode(FORMAT))
+                            view_rooms(conn)
+                        elif args[0] == '!s':
+                            if len(rooms) < 1:
+                                conn.send("Create a room first".encode(FORMAT))
+                            elif len(this_user.rooms) < 1:
+                                conn.send("Join a room first".encode(FORMAT))
+                            else:
+                                conn.send("Which rooms?".encode(FORMAT))
+                                temp = conn.recv(1024).decode(FORMAT)
+                                room_selection = temp.split(' ')
+                                conn.send("Enter your message: ".encode(FORMAT))
+                                s_message = conn.recv(1024).decode(FORMAT)
+                                print(this_user.addr, ":", s_message)
+                                new_msg = this_user.nick + ": " + s_message
+                                for i in room_selection:
+                                    if int(i) in this_user.rooms:
+                                        rooms[int(i)].buffer.append(new_msg)
                         else:
-                            conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
-                    elif args[0] == '!l':
-                        conn.send("Enter a room number: ".encode(FORMAT))
-                        room_number = conn.recv(1024).decode(FORMAT)
-                        if leave_room(this_user, room_number):
-                            conn.send(("you have left room " + str(room_number)).encode(FORMAT))
-                        else:
-                            conn.send("Can't leave room".encode(FORMAT))
-                        view_rooms(conn)
-                    elif args[0] == '!s':
-                        if len(rooms) < 1:
-                            conn.send("Create a room first".encode(FORMAT))
-                        elif len(this_user.rooms) < 1:
-                            conn.send("Join a room first".encode(FORMAT))
-                        else:
-                            conn.send("Which rooms?".encode(FORMAT))
-                            temp = conn.recv(1024).decode(FORMAT)
-                            room_selection = temp.split(' ')
-                            conn.send("Enter your message: ".encode(FORMAT))
-                            s_message = conn.recv(1024).decode(FORMAT)
-                            print(this_user.addr, ":", s_message)
-                            new_msg = this_user.nick + ": " + s_message
-                            for i in room_selection:
-                                if int(i) in this_user.rooms:
-                                    rooms[int(i)].buffer.append(new_msg)
-                    else:
-                        print(addr, ":", msg)
-                        new_msg = this_user.nick + ": " + msg
-                        for i in this_user.rooms:
-                            rooms[i].buffer.append(new_msg)
+                            print(addr, ":", msg)
+                            new_msg = this_user.nick + ": " + msg
+                            for i in this_user.rooms:
+                                rooms[i].buffer.append(new_msg)
 
-                # Pops the buffer and sends the messages to all clients
-                sent_list = []
-                for i in this_user.rooms:
-                    while rooms[i].buffer:
-                        new_msg = rooms[i].buffer.pop()
-                        user_list = rooms[i].users
-                        for j in rooms[i].users.keys():
-                            if j not in sent_list:
-                                sent_list.append(j)
-                                user_list.get(j).conn.send(new_msg.encode(FORMAT))
-                time.sleep(1)
-        except ConnectionResetError:
-            print('The client is not responding and crashed, please try after sometime. \
-              Closing the session now gracefully')
-            exit()
+                    # Pops the buffer and sends the messages to all clients
+                    sent_list = []
+                    for i in this_user.rooms:
+                        while rooms[i].buffer:
+                            new_msg = rooms[i].buffer.pop()
+                            user_list = rooms[i].users
+                            for j in rooms[i].users.keys():
+                                if j not in sent_list:
+                                    sent_list.append(j)
+                                    user_list.get(j).conn.send(new_msg.encode(FORMAT))
+                    time.sleep(1)
+                except (ConnectionResetError, ConnectionAbortedError, ConnectionError):
+                    this_user.conn.close()
+                    break
+                except ConnectionRefusedError:
+                    print('The client connection is refused')
+                    this_user.conn.close()
+                    break
+        except (ConnectionResetError, ConnectionAbortedError, ConnectionError):
+            conn.close()
+            if this_user:
+                for i in rooms:
+                    i.users.pop(this_user.nick)
+            break
         except ConnectionRefusedError:
-            print('The client connection is refused, closing the session now gracefully')
-            exit() 
+            print('The client connection is refused')
+            conn.close()
+            if this_user:
+                for i in rooms:
+                    i.users.pop(this_user.nick)
+            break
 
 
 def start():
+    global server_on
     # Initializing lobby room
     lobby = Room()
     rooms.append(lobby)
     server.listen()
+    threads = []
     print("Server address: ", SERVER)
-    while True:
-        (conn, addr) = server.accept()
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
-        thread.start()
-        print("Active Connections: ", threading.active_count()-1, "\n")
+    while server_on:
+        try:
+            (conn, addr) = server.accept()
+            thread = threading.Thread(target=handle_client, args=(conn, addr))
+            thread.start()
+            threads.append((conn,thread))
+            print("Active Connections: ", threading.active_count() - 1, "\n")
+        except (socket.timeout, TimeoutError):
+            pass
+    for i in threads:
+        i[0].close()
+        i[1].join()
+    exit(0)
 
 
 print("Starting server...")
-try:
-    start()
-except KeyboardInterrupt:
-    print("Interrupted")
-    try:
-        sys.exit(1)
-    except SystemExit:
-        os._exit(1)
+print("Use ctrl+c to exit")
+start()
