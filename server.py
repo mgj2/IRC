@@ -64,10 +64,10 @@ def create_room(user):
     try:
         user.conn.send(("You have joined room " + str(len(rooms) - 1) + '\n').encode(FORMAT))
     except ConnectionResetError:
-        print('The client is not responding and crashed, please try after sometime, closing the session now gracefully')
+        print('The client is not responding, \nclosing the session gracefully')
         exit()
     except ConnectionRefusedError:
-        print('The client connection is refused, closing the session now gracefully')
+        print('The client connection is refused, \nclosing the session gracefully')
         exit() 
 
 
@@ -89,7 +89,7 @@ def join_room(room_number, user) -> bool:
                 Closing the session now gracefully')
                 exit()
             except ConnectionRefusedError:
-                print('The client connection is refused, closing the session now gracefully')
+                print('The client connection is refused, closing the session gracefully')
                 exit() 
             return False
     else:
@@ -100,14 +100,19 @@ def join_room(room_number, user) -> bool:
             Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
-            print('The client connection is refused, closing the session now gracefully')
+            print('The client connection is refused, closing the session gracefully')
             exit() 
         return False
 
 
 def leave_room(user, room_number) -> bool:
     global rooms
-    room_number = int(room_number)
+    try:
+        room_number = int(room_number)
+    except ValueError as ve:
+        user.conn.send("Please enter a valid room number.".encode(FORMAT))
+        print(ve)
+        return False
     if room_number < len(rooms):
         user_list = rooms[room_number].users
         if user.nick in user_list.keys():
@@ -131,7 +136,7 @@ def view_rooms(conn):
             Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
-            print('The client connection is refused, closing the session now gracefully')
+            print('The client connection is refused, closing the session gracefully')
             exit() 
         for j in i.users.keys():
             try:
@@ -142,7 +147,7 @@ def view_rooms(conn):
                 Closing the session now gracefully')
                 exit()
             except ConnectionRefusedError:
-                print('The client connection is refused, closing the session now gracefully')
+                print('The client connection is refused, closing the session gracefully')
                 exit() 
 
 
@@ -183,7 +188,7 @@ def handle_client(conn, addr):
                         for i in this_user.rooms:
                             rooms[i].buffer.append(disc_str)
                             rooms[i].users.pop(this_user.nick)
-                            names.remove(this_user.nick)
+                        names.remove(this_user.nick)
                         
                     elif args[0] == '!h':
                         conn.send(print_options().encode(FORMAT))
@@ -193,20 +198,28 @@ def handle_client(conn, addr):
                         create_room(this_user)
                     elif args[0] == '!j':
                         conn.send("Enter a room number".encode(FORMAT))
-                        room_number = int(conn.recv(1024).decode(FORMAT))
-                        if not join_room(room_number, this_user):
-                            conn.send("Try again with proper room number \n".encode(FORMAT))
+                        try:
+                            room_number = int(conn.recv(1024).decode(FORMAT))
+                            if not join_room(room_number, this_user):
+                                conn.send("Try again with proper room number \n".encode(FORMAT))
+                                view_rooms(conn)
+                            else:
+                                conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
+                        except ValueError:
+                            conn.send("Enter a valid room number to join".encode(FORMAT))
                             view_rooms(conn)
-                        else:
-                            conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
                     elif args[0] == '!l':
                         conn.send("Enter a room number: ".encode(FORMAT))
-                        room_number = conn.recv(1024).decode(FORMAT)
-                        if leave_room(this_user, room_number):
-                            conn.send(("you have left room " + str(room_number)).encode(FORMAT))
-                        else:
-                            conn.send("Can't leave room".encode(FORMAT))
-                        view_rooms(conn)
+                        try:
+                            room_number = conn.recv(1024).decode(FORMAT)
+                            if leave_room(this_user, room_number):
+                                conn.send(("you have left room " + str(room_number)).encode(FORMAT))
+                            else:
+                                conn.send("Can't leave room".encode(FORMAT))
+                            view_rooms(conn)
+                        except ValueError:
+                            conn.send("Enter a valid room number to leave".encode(FORMAT))
+                            view_rooms(conn)
                     elif args[0] == '!s':
                         if len(rooms) < 1:
                             conn.send("Create a room first".encode(FORMAT))
@@ -241,8 +254,7 @@ def handle_client(conn, addr):
                                 user_list.get(j).conn.send(new_msg.encode(FORMAT))
                 time.sleep(1)
         except ConnectionResetError:
-            print('The client is not responding and crashed, please try after sometime. \
-              Closing the session now gracefully')
+            print('The client is not responding and crashed, \n Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
             print('The client connection is refused, closing the session now gracefully')
