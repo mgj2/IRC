@@ -75,10 +75,10 @@ def create_room(user):
     try:
         user.conn.send(("You have joined room " + str(len(rooms) - 1) + '\n').encode(FORMAT))
     except ConnectionResetError:
-        print('The client is not responding and crashed, please try after sometime, closing the session now gracefully')
+        print('The client is not responding, \nclosing the session gracefully')
         exit()
     except ConnectionRefusedError:
-        print('The client connection is refused, closing the session now gracefully')
+        print('The client connection is refused, \nclosing the session gracefully')
         exit() 
 
 
@@ -100,7 +100,7 @@ def join_room(room_number, user) -> bool:
                 Closing the session now gracefully')
                 exit()
             except ConnectionRefusedError:
-                print('The client connection is refused, closing the session now gracefully')
+                print('The client connection is refused, closing the session gracefully')
                 exit() 
             return False
     else:
@@ -111,14 +111,19 @@ def join_room(room_number, user) -> bool:
             Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
-            print('The client connection is refused, closing the session now gracefully')
+            print('The client connection is refused, closing the session gracefully')
             exit() 
         return False
 
 
 def leave_room(user, room_number) -> bool:
     global rooms
-    room_number = int(room_number)
+    try:
+        room_number = int(room_number)
+    except ValueError as ve:
+        user.conn.send("Please enter a valid room number.".encode(FORMAT))
+        print(ve)
+        return False
     if room_number < len(rooms):
         user_list = rooms[room_number].users
         if user.nick in user_list.keys():
@@ -142,7 +147,7 @@ def view_rooms(conn):
             Closing the session now gracefully')
             exit()
         except ConnectionRefusedError:
-            print('The client connection is refused, closing the session now gracefully')
+            print('The client connection is refused, closing the session gracefully')
             exit() 
         for j in i.users.keys():
             try:
@@ -153,7 +158,7 @@ def view_rooms(conn):
                 Closing the session now gracefully')
                 exit()
             except ConnectionRefusedError:
-                print('The client connection is refused, closing the session now gracefully')
+                print('The client connection is refused, closing the session gracefully')
                 exit() 
 
 
@@ -186,41 +191,49 @@ def handle_client(conn, addr):
                 try:
                     msg = conn.recv(1024).decode(FORMAT)
                     args = msg.split(' ')
-
-                    # Does not enter if statement unless a message has been received
-                    if not msg == '':
-                        if args[0] == '!q':
-                            conn.send(('quit').encode(FORMAT))
-                            conn.close()
-                            connected = False
-                            disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
-                            print(disc_str)
-                            for i in this_user.rooms:
-                                rooms[i].buffer.append(disc_str)
-                                rooms[i].users.pop(this_user.nick)
-                                names.remove(this_user.nick)
-
-                        elif args[0] == '!h':
-                            conn.send(print_options().encode(FORMAT))
-                        elif args[0] == '!v':
-                            view_rooms(conn)
-                        elif args[0] == '!c':
-                            create_room(this_user)
-                        elif args[0] == '!j':
-                            conn.send("Enter a room number".encode(FORMAT))
+                    
+                # Does not enter if statement unless a message has been received
+                if not msg == '':
+                    if args[0] == '!q':
+                        conn.send(('quit').encode(FORMAT))
+                        conn.close()
+                        connected = False
+                        disc_str = addr[0] + ":" + str(addr[1]) + " has disconnected"
+                        print(disc_str)
+                        for i in this_user.rooms:
+                            rooms[i].buffer.append(disc_str)
+                            rooms[i].users.pop(this_user.nick)
+                        names.remove(this_user.nick)
+                        
+                    elif args[0] == '!h':
+                        conn.send(print_options().encode(FORMAT))
+                    elif args[0] == '!v':
+                        view_rooms(conn)
+                    elif args[0] == '!c':
+                        create_room(this_user)
+                    elif args[0] == '!j':
+                        conn.send("Enter a room number".encode(FORMAT))
+                        try:
                             room_number = int(conn.recv(1024).decode(FORMAT))
                             if not join_room(room_number, this_user):
                                 conn.send("Try again with proper room number \n".encode(FORMAT))
                                 view_rooms(conn)
                             else:
                                 conn.send(("You have joined room " + str(room_number)).encode(FORMAT))
-                        elif args[0] == '!l':
-                            conn.send("Enter a room number: ".encode(FORMAT))
+                        except ValueError:
+                            conn.send("Enter a valid room number to join".encode(FORMAT))
+                            view_rooms(conn)
+                    elif args[0] == '!l':
+                        conn.send("Enter a room number: ".encode(FORMAT))
+                        try:
                             room_number = conn.recv(1024).decode(FORMAT)
                             if leave_room(this_user, room_number):
                                 conn.send(("you have left room " + str(room_number)).encode(FORMAT))
                             else:
                                 conn.send("Can't leave room".encode(FORMAT))
+                            view_rooms(conn)
+                        except ValueError:
+                            conn.send("Enter a valid room number to leave".encode(FORMAT))
                             view_rooms(conn)
                         elif args[0] == '!s':
                             if len(rooms) < 1:

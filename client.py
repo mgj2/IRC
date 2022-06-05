@@ -13,7 +13,14 @@ PORT = 64444
 def send(client, msg):
     # global receive_thread
     message = msg.encode(FORMAT)
-    client.send(message)
+    try:
+        client.send(message)
+    except ConnectionResetError:
+        print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
+        os._exit(1)
+    except ConnectionRefusedError:
+        print('The chat server is not available, disconnecting the session now')
+        os._exit(1)
     if message == '!q':
         exit(1)
 
@@ -21,11 +28,18 @@ def send(client, msg):
 def receive(client):
     resp = ''
     while True:
-        resp = client.recv(2048).decode(FORMAT)
-        if resp != 'quit':
+            try:
+                resp = client.recv(2048).decode(FORMAT)
+            except ConnectionResetError:
+                print('The chat server is not responding \n please try after sometime, \n disconnecting the session gracefully')
+                os._exit(1)
+            except ConnectionRefusedError:
+                print('The chat server is not available, disconnecting the session gracefully')
+                break
             print(resp)
-        elif resp == 'quit':
-            break
+            if resp == 'quit':
+                print("Connection closed gracefully")
+                break
         
 
 def user_naming(client):
@@ -37,10 +51,10 @@ def user_naming(client):
        
     except ConnectionResetError:
         print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
-        exit(1)
+        os._exit(1)
     except ConnectionRefusedError:
         print('The chat server is not available, disconnecting the session now')
-        exit(1)
+        os._exit(1)
     return flag
 
 
@@ -50,10 +64,10 @@ def main():
         client.connect((SERVER, PORT))
     except ConnectionResetError:
         print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
-        exit(1)
+        os._exit(1)
     except ConnectionRefusedError:
         print('The chat server is not available, disconnecting the session now')
-        exit(1)
+        os._exit(1)
                 
     while True:
         # calling the user_naming function to take username from user and perform naming conventions
