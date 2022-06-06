@@ -23,6 +23,7 @@ def send(client):
     while True:
         try:
             msg = input()
+            print('.')
             message = msg.encode(FORMAT)
         except (EOFError, KeyboardInterrupt):
             "Interrupted"
@@ -43,6 +44,8 @@ def receive(client) -> int:
                 return 0
             else:
                 print(resp)
+        except TimeoutError:
+            pass
         except ConnectionResetError:
             print("Server not responding.  Exiting...")
             return 1
@@ -62,7 +65,14 @@ def user_naming(client):
 def main():
     global send_thread
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((SERVER, PORT))
+    try:
+        client.connect((SERVER, PORT))
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        client.settimeout(.2)
+    except (ConnectionError, ConnectionRefusedError) as e:
+        print(e)
+        exit(1)
+
     while True:
         # calling the user_naming function to take username from user and perform naming conventions
         flag = user_naming(client)

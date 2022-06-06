@@ -216,6 +216,7 @@ def handle_client(conn, addr):
                                     user_list.get(j).conn.send(new_msg.encode(FORMAT))
                     time.sleep(1)
                 except (ConnectionResetError, ConnectionAbortedError, ConnectionError):
+                    print(str(this_user.addr), "not responding")
                     this_user.conn.close()
                     break
                 except ConnectionRefusedError:
