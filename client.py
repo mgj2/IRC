@@ -1,7 +1,6 @@
 import socket
 import threading
 import os
-import sys
 
 
 FORMAT = 'utf-8'
@@ -10,81 +9,65 @@ SERVER = socket.gethostbyname(socket.gethostname())
 PORT = 64444
 
 
-def send(client, msg):
-    # global receive_thread
-    message = msg.encode(FORMAT)
-    try:
-        client.send(message)
-    except ConnectionResetError:
-        print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
-        os._exit(1)
-    except ConnectionRefusedError:
-        print('The chat server is not available, disconnecting the session now')
-        os._exit(1)
-    if message == '!q':
-        exit(1)
+def send(client):
+    while True:
+        msg = input()
+        message = msg.encode(FORMAT)
+        try:
+            client.send(message)
+            if msg == '!q':
+                exit(0)
+        except ConnectionResetError:
+            break
 
     
-def receive(client):
-    resp = ''
+def receive(client, send_thread) -> int:
     while True:
-            try:
-                resp = client.recv(2048).decode(FORMAT)
-            except ConnectionResetError:
-                print('The chat server is not responding \n please try after sometime, \n disconnecting the session gracefully')
-                os._exit(1)
-            except ConnectionRefusedError:
-                print('The chat server is not available, disconnecting the session gracefully')
-                break
-            print(resp)
+        try:
+            resp = client.recv(2048).decode(FORMAT)
             if resp == 'quit':
-                print("Connection closed gracefully")
-                break
-        
+                return 0
+            else:
+                print(resp)
+        except ConnectionResetError:
+            print("Server not responding.  Exiting...")
+            return 1
+
 
 def user_naming(client):
     print("Enter your name: ")
     name = input()
-    send(client, name)
-    try:
-        flag = client.recv(21).decode(FORMAT)
-       
-    except ConnectionResetError:
-        print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
-        os._exit(1)
-    except ConnectionRefusedError:
-        print('The chat server is not available, disconnecting the session now')
-        os._exit(1)
+    client.send(name.encode(FORMAT))
+    flag = client.recv(2048).decode(FORMAT)
     return flag
 
 
 def main():
+    # print("Enter your name: ")
+    # name = input()
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        client.connect((SERVER, PORT))
-    except ConnectionResetError:
-        print('The server is not responding and crashed, please try after sometime, disconnecting the session now')
-        os._exit(1)
-    except ConnectionRefusedError:
-        print('The chat server is not available, disconnecting the session now')
-        os._exit(1)
-                
+    client.connect((SERVER, PORT))
     while True:
         # calling the user_naming function to take username from user and perform naming conventions
-            
         flag = user_naming(client)
         if flag != 'You are in the lobby.':
             print(flag)
-                
-        else:   
+
+        else:
             # Specifies a second thread.  Loops infinitely inside receive()
-            receive_thread = threading.Thread(target=receive, args=(client,))
-            receive_thread.start()
+            send_thread = threading.Thread(target=send, args=(client,))
+            send_thread.start()
             break
 
-    while True:
-        msg = input()
-        send(client, msg)
+    try:
+        exit_code = receive(client, send_thread)
+        send_thread.join()
+        exit(exit_code)
+    except KeyboardInterrupt:
+        print("Interrupted")
+        send_thread.join()
+        client.close()
+        exit(1)
 
 
 if __name__ == "__main__":
