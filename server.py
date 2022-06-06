@@ -32,13 +32,17 @@ try:
     server.bind(ADDR)
 except ConnectionResetError:
     print('The server is unable to bind to socket, please try after sometime, closing now')
-    os._exit(1)
+    exit()
 except ConnectionRefusedError:
     print('The server bind request is refused,  please try after sometime, closing now')
-    os._exit(1) 
+    exit()
+except KeyboardInterrupt:
+    print('Server interrupted. closing...')
+    os._exit(1)
+    
 except OSError:
     print('The server is already running, closing now')
-    os._exit(1)
+    exit()
 
 server_on = True
 
@@ -65,10 +69,13 @@ def create_room(user):
         user.conn.send(("You have joined room " + str(len(rooms) - 1) + '\n').encode(FORMAT))
     except ConnectionResetError:
         print('The client is not responding, \nclosing the session gracefully')
-        os._exit(1)
+        exit()
     except ConnectionRefusedError:
         print('The client connection is refused, \nclosing the session gracefully')
-        os._exit(1) 
+        exit() 
+    except KeyboardInterrupt:
+        print('Server interrupted. closing...')
+        os._exit(1)
 
 
 def join_room(room_number, user) -> bool:
@@ -87,10 +94,13 @@ def join_room(room_number, user) -> bool:
             except ConnectionResetError:
                 print('The client is not responding and crashed, please try after sometime.  \
                 Closing the session now gracefully')
-                os._exit(1)
+                exit()
             except ConnectionRefusedError:
                 print('The client connection is refused, closing the session gracefully')
-                os._exit(1) 
+                exit() 
+            except KeyboardInterrupt:
+                print('Server interrupted. closing...')
+                os._exit(1)
             return False
     else:
         try:
@@ -98,10 +108,14 @@ def join_room(room_number, user) -> bool:
         except ConnectionResetError:
             print('The client is not responding and crashed, please try after sometime.  \
             Closing the session now gracefully')
-            os._exit(1)
+            exit()
         except ConnectionRefusedError:
             print('The client connection is refused, closing the session gracefully')
-            os._exit(1) 
+            exit() 
+        except KeyboardInterrupt:
+            print('Server interrupted. closing...')
+            os._exit(1)
+
         return False
 
 
@@ -134,10 +148,14 @@ def view_rooms(conn):
         except ConnectionResetError:
             print('The client is not responding and crashed, please try after sometime. \
             Closing the session now gracefully')
-            os._exit(1)
+            exit()
         except ConnectionRefusedError:
             print('The client connection is refused, closing the session gracefully')
-            os._exit(1) 
+            exit() 
+        except KeyboardInterrupt:
+            print('Server interrupted. closing...')
+            os._exit(1)
+
         for j in i.users.keys():
             try:
                 conn.send(("    -" + j).encode(FORMAT))
@@ -145,10 +163,13 @@ def view_rooms(conn):
             except ConnectionResetError:
                 print('The client is not responding and crashed, please try after sometime. \
                 Closing the session now gracefully')
-                os._exit(1)
+                exit()
             except ConnectionRefusedError:
                 print('The client connection is refused, closing the session gracefully')
-                os._exit(1) 
+                exit() 
+            except KeyboardInterrupt:
+                print('Server interrupted. closing...')
+                os._exit(1)
 
 
 def handle_client(conn, addr):
@@ -255,10 +276,13 @@ def handle_client(conn, addr):
                 time.sleep(1)
         except ConnectionResetError:
             print('The client is not responding and crashed, \n Closing the session now gracefully')
-            os._exit(1)
+            exit()
         except ConnectionRefusedError:
             print('The client connection is refused, closing the session now gracefully')
-            os._exit(1) 
+            exit() 
+        except KeyboardInterrupt:
+            print('Server interrupted. closing...')
+            os._exit(1)
 
 
 def start():
@@ -267,19 +291,22 @@ def start():
     rooms.append(lobby)
     server.listen()
     print("Server address: ", SERVER)
-    while True:
-        (conn, addr) = server.accept()
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
-        thread.start()
-        print("Active Connections: ", threading.active_count()-1, "\n")
+    
+    try:
+        while True:
+            (conn, addr) = server.accept()
+            thread = threading.Thread(target=handle_client, args=(conn, addr))
+            thread.start()
+            print("Active Connections: ", threading.active_count()-1, "\n")
+    except KeyboardInterrupt:
+        print('Server interrupted. closing...')
+        os._exit(1)
 
 
 print("Starting server...")
+print("Use ctrl+c to exit")
 try:
     start()
 except KeyboardInterrupt:
     print("Interrupted")
-    try:
-        sys.exit(1)
-    except SystemExit:
-        os._exit(1)
+    os._exit(1)
