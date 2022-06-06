@@ -1,11 +1,22 @@
 import socket
 import threading
-import os
+import signal
 
 
 FORMAT = 'utf-8'
 SERVER = socket.gethostbyname(socket.gethostname())
 PORT = 64444
+send_thread = None
+
+
+def graceful_exit(signal_received, frame):
+    print("Interrupted")
+    if send_thread:
+        send_thread.join()
+    exit(1)
+
+
+signal.signal(signal.SIGINT, graceful_exit)
 
 
 def send(client):
@@ -13,7 +24,7 @@ def send(client):
         try:
             msg = input()
             message = msg.encode(FORMAT)
-        except EOFError:
+        except (EOFError, KeyboardInterrupt):
             "Interrupted"
             break
         try:
@@ -35,6 +46,9 @@ def receive(client) -> int:
         except ConnectionResetError:
             print("Server not responding.  Exiting...")
             return 1
+        except KeyboardInterrupt:
+            print("interrupted")
+            return 1
 
 
 def user_naming(client):
@@ -46,8 +60,7 @@ def user_naming(client):
 
 
 def main():
-    # print("Enter your name: ")
-    # name = input()
+    global send_thread
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((SERVER, PORT))
     while True:

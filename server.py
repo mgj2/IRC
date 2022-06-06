@@ -225,8 +225,8 @@ def handle_client(conn, addr):
         except (ConnectionResetError, ConnectionAbortedError, ConnectionError, Exception):
             conn.close()
             if this_user:
-                for i in rooms:
-                    i.users.pop(this_user.nick)
+                for i in this_user.rooms:
+                    rooms[i].users.pop(this_user.nick)
                 names.remove(this_user.nick)
             break
 
