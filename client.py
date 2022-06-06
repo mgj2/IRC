@@ -5,14 +5,17 @@ import os
 
 FORMAT = 'utf-8'
 SERVER = socket.gethostbyname(socket.gethostname())
-# SERVER = '127.0.0.1'
 PORT = 64444
 
 
 def send(client):
     while True:
-        msg = input()
-        message = msg.encode(FORMAT)
+        try:
+            msg = input()
+            message = msg.encode(FORMAT)
+        except EOFError:
+            "Interrupted"
+            break
         try:
             client.send(message)
             if msg == '!q':
@@ -21,7 +24,7 @@ def send(client):
             break
 
     
-def receive(client, send_thread) -> int:
+def receive(client) -> int:
     while True:
         try:
             resp = client.recv(2048).decode(FORMAT)
@@ -60,7 +63,7 @@ def main():
             break
 
     try:
-        exit_code = receive(client, send_thread)
+        exit_code = receive(client)
         send_thread.join()
         exit(exit_code)
     except KeyboardInterrupt:
